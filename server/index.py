@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS
 import joblib
 import pandas as pd
 
 app = Flask(__name__)
+CORS(app)
 
 # Load the trained model
 model = joblib.load('model/delayedFlights.pkl')
@@ -16,6 +18,8 @@ def predict_delay():
     day_of_week = data['day_of_week']
     origin = data['origin']
     dest = data['dest']
+
+    print(data)
     
     # Prepare the input data
     input_data = pd.DataFrame({'DayOfWeek': [day_of_week], 'Origin': [origin], 'Dest': [dest]})
@@ -24,9 +28,24 @@ def predict_delay():
     
     # Predict the probability of delay
     probability = model.predict_proba(input_data)[0][1]
-    
-    return jsonify({'probability_of_delay': probability})
 
+    response = make_response(jsonify({'probability_of_delay': probability}))    
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+    
+    
+    return response
+
+# creating an endpoint which returns the list of airport names and IDs, sorted in alphabetical order
+@app.route('/airports', methods=['GET'])
+def airports():
+    airports = pd.read_csv('data/airports.csv')
+    airports = airports.sort_values('AirportName')
+    response = make_response(jsonify(airports.to_dict(orient='records')))
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, OPTIONS'
+
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)
